@@ -154,3 +154,15 @@
 .flex-spacer {
     @apply w-full flex-1;
 }
+
+.secondary-rounded-button {
+    @apply flex items-center p-2 rounded-full text-gray-700 hover:text-white bg-gray-200 hover:bg-indigo-500;
+}
+
+.secondary-rounded-button.danger {
+    @apply hover:bg-red-500;
+}
+
+.secondary-rounded-button > .icon {
+    @apply w-4 h-4;
+}

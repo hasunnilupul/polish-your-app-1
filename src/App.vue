@@ -4,7 +4,7 @@ import { reactive, ref } from "vue";
  This is an Icon that you can use to represent the stars if you like
  otherwise you could just use a simple ⭐️ emoji, or * character.
 */
-import { StarIcon } from "@heroicons/vue/24/solid";
+import { StarIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/solid";
 import { items } from "./movies.json";
 
 const movies = ref(items);
@@ -21,9 +21,11 @@ const errors = reactive({
   genres: null,
 });
 const form = reactive({
+  id: 0,
   name: null,
   description: null,
   image: null,
+  rating: 0,
   inTheaters: false,
   genres: null,
 });
@@ -63,26 +65,43 @@ function validate() {
 
 function addMovie() {
   if (validate()) {
-    const movie = {
-      id: Number(Date.now()),
-      name: form.name,
-      description: form.description,
-      image: form.image,
-      genres: form.genres,
-      inTheaters: form.inTheaters,
-      rating: null,
-    };
-    movies.value.push(movie);
-    hideForm();
+    if (form.id > 0) {
+      const movie = {
+        id: form.id,
+        name: form.name,
+        description: form.description,
+        image: form.image,
+        genres: form.genres,
+        inTheaters: form.inTheaters,
+        rating: form.rating,
+      };
+
+      movies.value = movies.value.map((item) => (item.id === movie.id ? movie : item));
+      hideForm();
+    } else {
+      const movie = {
+        id: Number(Date.now()),
+        name: form.name,
+        description: form.description,
+        image: form.image,
+        genres: form.genres,
+        inTheaters: form.inTheaters,
+        rating: 0,
+      };
+      movies.value.push(movie);
+      hideForm();
+    }
   }
 }
 
 function cleanUpForm() {
+  form.id = 0;
   form.name = null;
   form.description = null;
   form.image = null;
   form.genres = null;
   form.inTheaters = false;
+  form.rating = 0;
   clearErrors();
 }
 
@@ -101,9 +120,22 @@ function hideForm() {
   cleanUpForm();
 }
 
-function showForm() {
+function showForm(movie) {
+  if (movie) {
+    form.id = movie.id;
+    form.name = movie.name;
+    form.description = movie.description;
+    form.image = movie.image;
+    form.genres = movie.genres;
+    form.rating = movie.rating;
+    form.inTheaters = movie.inTheaters;
+  }
+
   showMovieForm.value = true;
 }
+
+const handleDeleteMovie = (movieId) =>
+  (movies.value = movies.value.filter((movie) => movie.id !== movieId));
 </script>
 
 <template>
@@ -113,12 +145,7 @@ function showForm() {
         <form @submit.prevent="addMovie">
           <div class="movie-form-input-wrapper">
             <label for="name">Name</label>
-            <input
-              type="text"
-              name="name"
-              v-model="form.name"
-              class="movie-form-input"
-            />
+            <input type="text" name="name" v-model="form.name" class="movie-form-input" />
             <span class="movie-form-error">{{ errors.name }}</span>
           </div>
           <div class="movie-form-input-wrapper">
@@ -143,17 +170,8 @@ function showForm() {
           </div>
           <div class="movie-form-input-wrapper">
             <label for="genre">Genres</label>
-            <select
-              name="genre"
-              v-model="form.genres"
-              class="movie-form-input"
-              multiple
-            >
-              <option
-                v-for="option in genres"
-                :key="option.value"
-                :value="option.value"
-              >
+            <select name="genre" v-model="form.genres" class="movie-form-input" multiple>
+              <option v-for="option in genres" :key="option.value" :value="option.value">
                 {{ option.text }}
               </option>
             </select>
@@ -177,11 +195,11 @@ function showForm() {
             </span>
           </div>
           <div class="movie-form-actions-wrapper">
-            <button type="button" class="button" @click="hideForm">
-              Cancel
-            </button>
+            <button type="button" class="button" @click="hideForm">Cancel</button>
 
-            <button type="submit" class="button-primary">Create</button>
+            <button type="submit" class="button-primary">
+              {{ form.id ? "Update" : "Create" }}
+            </button>
           </div>
         </form>
       </div>
@@ -203,11 +221,7 @@ function showForm() {
       </div>
     </div>
     <div class="movie-list">
-      <div
-        class="movie-item"
-        v-for="(movie, movieIndex) in movies"
-        :key="movie.id"
-      >
+      <div class="movie-item group" v-for="(movie, movieIndex) in movies" :key="movie.id">
         <div class="movie-item-image-wrapper">
           <div class="movie-item-star-wrapper">
             <StarIcon
@@ -223,9 +237,7 @@ function showForm() {
               >
                 {{ movie.rating }}
               </span>
-              <span v-else class="movie-item-star-content-rating-not-rated">
-                -
-              </span>
+              <span v-else class="movie-item-star-content-rating-not-rated"> - </span>
             </div>
           </div>
           <img :src="movie.image" class="movie-item-image" alt="" />
@@ -247,22 +259,35 @@ function showForm() {
             <p class="movie-item-description">{{ movie.description }}</p>
           </div>
           <div class="movie-item-rating-wrapper">
-            <span class="movie-item-rating-text">
-              Rating: ({{ movie.rating }}/5)
-            </span>
+            <span class="movie-item-rating-text"> Rating: ({{ movie.rating }}/5) </span>
 
             <div class="movie-item-star-icon-wrapper">
               <button
                 v-for="star in 5"
                 :key="star"
                 class="movie-item-star-icon-button"
-                :class="[
-                  star <= movie.rating ? 'text-yellow-500' : 'text-gray-500',
-                ]"
+                :class="[star <= movie.rating ? 'text-yellow-500' : 'text-gray-500']"
                 :disabled="star === movie.rating"
                 @click="updateRating(movieIndex, star)"
               >
                 <StarIcon class="movie-item-star-icon" />
+              </button>
+            </div>
+
+            <div class="hidden group-hover:flex ml-auto space-x-2">
+              <button
+                type="button"
+                class="secondary-rounded-button"
+                @click="showForm(movie)"
+              >
+                <PencilIcon class="icon" />
+              </button>
+              <button
+                type="button"
+                class="secondary-rounded-button danger"
+                @click="handleDeleteMovie(movie.id)"
+              >
+                <TrashIcon class="icon" />
               </button>
             </div>
           </div>
